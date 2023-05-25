@@ -2001,7 +2001,7 @@ class KubeSpawner(Spawner):
         )
 
         # Filter nodes based on the number of volumes attached
-        filtered_nodes = self.filter_nodes()
+        filtered_nodes = await self.filter_nodes()
 
         self.log.info("Filtering nodes")
 
