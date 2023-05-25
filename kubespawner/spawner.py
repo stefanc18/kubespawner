@@ -1927,6 +1927,28 @@ class KubeSpawner(Spawner):
             hostname,
             self.port,
         )
+    
+    VOLUMES_THRESHOLD = 10
+    
+    def get_node_volumes(self, node_name):
+        # Retrieve the list of volumes attached to a node
+        node = self.api.read_node(node_name)
+        volumes = node.status.volumes_attached if node.status.volumes_attached else []
+        return len(volumes)
+    
+    def filter_nodes(self):
+        # Retrieve all nodes in the cluster
+        nodes = self.api.list_node().items
+
+        # Filter nodes that have less than 20 volumes attached
+        filtered_nodes = []
+        for node in nodes:
+            node_name = node.metadata.name
+            volumes_count = self.get_node_volumes(node_name)
+            if volumes_count < self.VOLUMES_THRESHOLD:
+                filtered_nodes.append(node_name)
+
+        return filtered_nodes
 
     async def get_pod_manifest(self):
         """
@@ -1977,6 +1999,14 @@ class KubeSpawner(Spawner):
             self._expand_all(self.extra_annotations)
         )
 
+        # Filter nodes based on the number of volumes attached
+        filtered_nodes = self.filter_nodes()
+
+        self.log.info("Filtering nodes")
+
+        # Set the node selector to restrict pod scheduling to the filtered nodes
+        node_selector = {"kubernetes.io/hostname": ",".join(filtered_nodes)}
+
         return make_pod(
             name=self.pod_name,
             cmd=real_cmd,
@@ -1984,7 +2014,7 @@ class KubeSpawner(Spawner):
             image=self.image,
             image_pull_policy=self.image_pull_policy,
             image_pull_secrets=self.image_pull_secrets,
-            node_selector=self.node_selector,
+            node_selector=node_selector,
             uid=uid,
             gid=gid,
             fs_gid=fs_gid,
