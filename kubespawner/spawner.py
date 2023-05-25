@@ -1930,21 +1930,22 @@ class KubeSpawner(Spawner):
     
     VOLUMES_THRESHOLD = 10
     
-    def get_node_volumes(self, node_name):
+    async def get_node_volumes(self, node_name):
         # Retrieve the list of volumes attached to a node
-        node = self.api.read_node(node_name)
+        node = await self.api.read_node(node_name)
         volumes = node.status.volumes_attached if node.status.volumes_attached else []
         return len(volumes)
     
-    def filter_nodes(self):
+    async def filter_nodes(self):
         # Retrieve all nodes in the cluster
-        nodes = self.api.list_node().items
+        node_list = await self.api.list_node()
+        nodes = node_list.items
 
-        # Filter nodes that have less than 20 volumes attached
+        # Filter nodes that have less than 10 volumes attached
         filtered_nodes = []
         for node in nodes:
             node_name = node.metadata.name
-            volumes_count = self.get_node_volumes(node_name)
+            volumes_count = await self.get_node_volumes(node_name)
             if volumes_count < self.VOLUMES_THRESHOLD:
                 filtered_nodes.append(node_name)
 
